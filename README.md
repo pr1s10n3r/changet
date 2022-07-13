@@ -34,4 +34,5 @@ meson build -C target
 
 ## License
 
-TBD
+See [LICENSE](./LICENSE) file.
+
