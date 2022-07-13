@@ -9,7 +9,7 @@
 
 #define VERSION "1.0.0"
 
-static int vflag, vrsflag, hflag;
+static int vflag, vrsflag;
 
 void print_help(const char* program);
 
@@ -18,11 +18,11 @@ int main(int argc, char* argv[])
     const char* program = argv[0];
 
     const struct option options[] = {
-        {"verbose", no_argument, &vflag, 1},
-        {"version", no_argument, &vrsflag, 'v'},
-        {"help", no_argument, &hflag, 'h'},
-        {"thread", required_argument, 0, 't'},
-        {"board", required_argument, 0, 'b'},
+        {"--verbose", no_argument, &vflag, 1},
+        {"--version", no_argument, &vrsflag, 'v'},
+        {"--help", no_argument, 0, 'h'},
+        {"--thread", required_argument, 0, 't'},
+        {"--board", required_argument, 0, 'b'},
         {0, 0, 0, 0}
     };
 
@@ -54,6 +54,8 @@ int main(int argc, char* argv[])
                 thread_id = (u64)atoi(optarg);
                 break;
             case 'h':
+                print_help(program);
+                break;
             case '?':
                 print_help(program);
                 break;
@@ -62,7 +64,7 @@ int main(int argc, char* argv[])
         }
     }
 
-    if (vrsflag || hflag)
+    if (vrsflag)
         return EXIT_SUCCESS;
 
     post_t* posts = get_thread_posts(board, thread_id);
@@ -76,9 +78,13 @@ void print_help(const char* program)
     printf(
             "Usage:\n"
             "  %s --thread <id> [options]\n\n"
-            "META OPTIONS\n"
-            "  -?, --help show list of command-line options\n"
-            "  -v, --version show version of %s\n",
+            "OPTIONS\n"
+            "  -?, --help    show     list of command-line options\n"
+            "  -v, --version show     version of %s\n"
+            "      --verbose show     more detailed information about what is happening\n"
+            "  -o, --output  PATH     save all downloaded files into PATH\n"
+            "  -i, --ignore FORMAT(s) if a file format is detected while downloading, ignore it.\n"
+            "                         Available formats: jpg,png,gif,pdf,swf,webm\n",
             program, program
     );
 }

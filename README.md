@@ -22,7 +22,15 @@ sudo apt install meson ninja-build libcurl-dev libjson-c-dev
 
 ## Build
 
-TBD
+```sh
+# generate required files for project building
+meson target
+```
+
+```sh
+# build the project
+meson build -C target
+```
 
 ## License
 
