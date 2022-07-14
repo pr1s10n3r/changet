@@ -1,7 +1,6 @@
 #include <getopt.h>
-#include <stdlib.h>
-#include <stdint.h>
 #include <stdio.h>
+#include <stdlib.h>
 
 #include "types.h"
 #include "board.h"
@@ -11,18 +10,18 @@
 
 static int vflag, vrsflag;
 
-void print_help(const char* program);
+void print_help(const char* progname);
 
 int main(int argc, char* argv[])
 {
-    const char* program = argv[0];
+    const char* progname = argv[0];
 
     const struct option options[] = {
         {"--verbose", no_argument, &vflag, 1},
         {"--version", no_argument, &vrsflag, 'v'},
         {"--help", no_argument, 0, 'h'},
-        {"--thread", required_argument, 0, 't'},
-        {"--board", required_argument, 0, 'b'},
+        {"thread", required_argument, 0, 't'},
+        {"board", required_argument, 0, 'b'},
         {0, 0, 0, 0}
     };
 
@@ -36,17 +35,17 @@ int main(int argc, char* argv[])
         int c = getopt_long(argc, argv, "hvb:t:", options, &optindex);
         if (c == -1)
             break;
-      
+
         switch (c)
         {
             case 'v':
-                printf("%s v%s\n", program, VERSION);
+                printf("%s v%s\n", progname, VERSION);
                 break;
             case 'b':
                 if (is_valid_board(optarg)) {
                     memcpy(board, optarg, MAX_BOARD_LENGTH);
                 } else {
-                    fprintf(stderr, "%s: invalid argument for --board\n", program);
+                    fprintf(stderr, "%s: invalid argument for --board\n", progname);
                     exit(EXIT_FAILURE);
                 }
                 break;
@@ -54,10 +53,10 @@ int main(int argc, char* argv[])
                 thread_id = (u64)atoi(optarg);
                 break;
             case 'h':
-                print_help(program);
+                print_help(progname);
                 break;
             case '?':
-                print_help(program);
+                print_help(progname);
                 break;
             default:
                 abort();
@@ -67,17 +66,40 @@ int main(int argc, char* argv[])
     if (vrsflag)
         return EXIT_SUCCESS;
 
-    post_t* posts = get_thread_posts(board, thread_id);
-    free(posts);
+    if (thread_id == 0) {
+        fprintf(stderr, "%s: no thread id\n", progname);
+        print_help(progname);
+        return EXIT_FAILURE;
+    } else if (strlen(board) == 0) {
+        fprintf(stderr, "%s: no board name\n", progname);
+        print_help(progname);
+        return EXIT_FAILURE;
+    }
+
+    thread_t thread = get_thread_posts(board, thread_id);
+    if (thread.failed)
+    {
+        fprintf(stderr, "%s: could not get thread posts\n", progname);
+        return EXIT_FAILURE;
+    }
+
+    for (usize i = 0; i < 10; i++)
+    {
+        post_t post = *thread.posts++;
+        printf("[%zu] File: %s%s\n", i, post.filename, post.ext);
+    }
+
+    printf("Free!\n");
+    free(thread.posts);
 
     return EXIT_SUCCESS;
 }
 
-void print_help(const char* program)
+void print_help(const char* progname)
 {
     printf(
             "Usage:\n"
-            "  %s --thread <id> [options]\n\n"
+            "  %s --board BOARD --thread ID [options]\n\n"
             "OPTIONS\n"
             "  -?, --help    show     list of command-line options\n"
             "  -v, --version show     version of %s\n"
@@ -85,6 +107,6 @@ void print_help(const char* program)
             "  -o, --output  PATH     save all downloaded files into PATH\n"
             "  -i, --ignore FORMAT(s) if a file format is detected while downloading, ignore it.\n"
             "                         Available formats: jpg,png,gif,pdf,swf,webm\n",
-            program, program
+            progname, progname
     );
 }

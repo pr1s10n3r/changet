@@ -3,9 +3,17 @@
 #include <stdlib.h>
 #include <string.h>
 #include <stdio.h>
+
 #include <curl/curl.h>
+#include <json-c/json.h>
 
 #define MAX_URL_LENGTH 1024
+
+struct response
+{
+    char* payload;
+    size_t size;
+};
 
 char* build_4chan_url(char* board, u64 thread_id)
 {
@@ -21,18 +29,94 @@ char* build_4chan_url(char* board, u64 thread_id)
     return url;
 }
 
-post_t* get_thread_posts(char* board, u64 thread_id)
+static size_t write_callback(char *body, size_t size, size_t nmemb, void *usrdata)
 {
+    const size_t rsize = size * nmemb;
+    struct response* resp = (struct response*)usrdata;
+
+    char *tmp = realloc(resp->payload, resp->size + rsize + 1);
+    if (tmp == NULL)
+    {
+        fprintf(stderr, "ERROR: unable to reallocate buffer");
+        free(resp->payload);
+        return 1;
+    }
+
+    resp->payload = tmp;
+    memcpy(&(resp->payload[resp->size]), body, rsize);
+
+    resp->size += rsize;
+    resp->payload[resp->size] = 0x00;
+
+    return rsize;
+}
+
+thread_t parse_thread_posts(const char* str)
+{
+    struct json_object *root = json_tokener_parse(str);
+    struct json_object *posts_array = json_object_object_get(root, "posts");
+
+    const usize n_posts = json_object_array_length(posts_array);
+    usize posts_with_files = 0;
+
+    for (usize i = 0; i < n_posts; i++)
+    {
+        struct json_object *post = json_object_array_get_idx(posts_array, i);
+
+        struct json_object *filename = json_object_object_get(post, "filename");
+        if (filename == NULL) /* does not have file. Ignore it */
+            continue;
+
+        posts_with_files++;
+    }
+
+    post_t* posts = (post_t*)malloc(sizeof(post_t) * posts_with_files);
+
+    for (usize i = 0; i < posts_with_files; i++)
+    {
+        struct json_object *post = json_object_array_get_idx(posts_array, i);
+
+        struct json_object *filename = json_object_object_get(post, "filename");
+        if (filename == NULL)
+            continue;
+
+        struct json_object *ext = json_object_object_get(post, "ext");
+
+        post_t item = {
+            .filename = json_object_get_string(filename),
+            .ext = json_object_get_string(ext),
+        };
+
+        printf("[%zu] appendig %s%s to list\n", i, item.filename, item.ext);
+
+        posts[i] = item;
+    }
+
+    thread_t result = {
+        .posts = posts,
+        .size = posts_with_files,
+        .failed = false,
+    };
+
+    return result;
+}
+
+thread_t get_thread_posts(char* board, u64 thread_id)
+{
+    thread_t result = {.posts = NULL, .size = 0, .failed = false};
     char* url = build_4chan_url(board, thread_id);
 
     CURL* curl = curl_easy_init();
     if (curl == NULL)
     {
         free(url);
-
         fprintf(stderr, "ERROR: unable to create curl handle\n");
-        return NULL;
+
+        result.failed = true;
+        return result;
     }
+
+    struct response chunk = {.payload = malloc(0), .size = 0};
 
     struct curl_slist* headers = NULL;
     headers = curl_slist_append(headers, "Accept: application/json");
@@ -42,7 +126,8 @@ post_t* get_thread_posts(char* board, u64 thread_id)
     curl_easy_setopt(curl, CURLOPT_URL, url);
     curl_easy_setopt(curl, CURLOPT_HTTPHEADER, headers);
     curl_easy_setopt(curl, CURLOPT_HTTPGET, 1);
-    curl_easy_setopt(curl, CURLOPT_WRITEDATA, stdout);
+    curl_easy_setopt(curl, CURLOPT_WRITEFUNCTION, write_callback);
+    curl_easy_setopt(curl, CURLOPT_WRITEDATA, (void*)&chunk);
     curl_easy_setopt(curl, CURLOPT_USERAGENT, "libcurl/changet");
     curl_easy_setopt(curl, CURLOPT_MAXREDIRS, 1);
 
@@ -55,11 +140,15 @@ post_t* get_thread_posts(char* board, u64 thread_id)
     free(url);
     url = NULL;
 
-    if (response != CURLE_OK)
-        return NULL;
+    if (response != CURLE_OK) {
+        free(chunk.payload);
+        result.failed = true;
+        return result;
+    }
 
-    int n_posts = 1;
-    post_t* posts = malloc(sizeof(post_t) * n_posts);
+    result = parse_thread_posts(chunk.payload);
+    free(chunk.payload);
 
-    return posts;
+    return result;
 }
+
