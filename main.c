@@ -67,11 +67,14 @@ int main(int argc, char* argv[])
     if (vrsflag)
         return EXIT_SUCCESS;
 
-    if (thread_id == 0) {
+    if (thread_id == 0)
+    {
         fprintf(stderr, "%s: no thread id\n", progname);
         print_help(progname);
         return EXIT_FAILURE;
-    } else if (strlen(board) == 0) {
+    }
+    else if (strlen(board) == 0)
+    {
         fprintf(stderr, "%s: no board name\n", progname);
         print_help(progname);
         return EXIT_FAILURE;
@@ -88,10 +91,8 @@ int main(int argc, char* argv[])
     {
         node_t* node = list_get_idx(posts, i);
         post_t* post = (post_t*)node->value;
-        printf("Filename: %s%s\n", post->filename, post->ext);
     }
 
-    printf("Freeing\n");
     list_destroy(posts);
 
     return EXIT_SUCCESS;

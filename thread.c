@@ -70,11 +70,13 @@ linked_list_t* parse_thread_posts(const char* str)
         struct json_object *ext = json_object_object_get(post, "ext");
 
         post_t* item = (post_t*)calloc(1, sizeof(post_t));
-        item->filename = json_object_get_string(filename),
-        item->ext = json_object_get_string(ext),
+        item->filename = json_object_get_string(filename);
+        item->ext = json_object_get_string(ext);
 
         list_add(posts, item);
     }
+
+    json_object_put(root);
 
     return posts;
 }
