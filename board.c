@@ -1,4 +1,5 @@
 #include "board.h"
+#include <string.h>
 
 char boards[NUM_AVAILABLE_BOARDS][MAX_BOARD_LENGTH] = {
     "a", // anime

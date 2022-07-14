@@ -51,28 +51,15 @@ static size_t write_callback(char *body, size_t size, size_t nmemb, void *usrdat
     return rsize;
 }
 
-thread_t parse_thread_posts(const char* str)
+linked_list_t* parse_thread_posts(const char* str)
 {
     struct json_object *root = json_tokener_parse(str);
     struct json_object *posts_array = json_object_object_get(root, "posts");
 
     const usize n_posts = json_object_array_length(posts_array);
-    usize posts_with_files = 0;
+    linked_list_t* posts = list_create(NULL);
 
     for (usize i = 0; i < n_posts; i++)
-    {
-        struct json_object *post = json_object_array_get_idx(posts_array, i);
-
-        struct json_object *filename = json_object_object_get(post, "filename");
-        if (filename == NULL) /* does not have file. Ignore it */
-            continue;
-
-        posts_with_files++;
-    }
-
-    post_t* posts = (post_t*)malloc(sizeof(post_t) * posts_with_files);
-
-    for (usize i = 0; i < posts_with_files; i++)
     {
         struct json_object *post = json_object_array_get_idx(posts_array, i);
 
@@ -82,28 +69,18 @@ thread_t parse_thread_posts(const char* str)
 
         struct json_object *ext = json_object_object_get(post, "ext");
 
-        post_t item = {
-            .filename = json_object_get_string(filename),
-            .ext = json_object_get_string(ext),
-        };
+        post_t* item = (post_t*)calloc(1, sizeof(post_t));
+        item->filename = json_object_get_string(filename),
+        item->ext = json_object_get_string(ext),
 
-        printf("[%zu] appendig %s%s to list\n", i, item.filename, item.ext);
-
-        posts[i] = item;
+        list_add(posts, item);
     }
 
-    thread_t result = {
-        .posts = posts,
-        .size = posts_with_files,
-        .failed = false,
-    };
-
-    return result;
+    return posts;
 }
 
-thread_t get_thread_posts(char* board, u64 thread_id)
+linked_list_t* get_thread_posts(char* board, u64 thread_id)
 {
-    thread_t result = {.posts = NULL, .size = 0, .failed = false};
     char* url = build_4chan_url(board, thread_id);
 
     CURL* curl = curl_easy_init();
@@ -111,9 +88,7 @@ thread_t get_thread_posts(char* board, u64 thread_id)
     {
         free(url);
         fprintf(stderr, "ERROR: unable to create curl handle\n");
-
-        result.failed = true;
-        return result;
+        return NULL;
     }
 
     struct response chunk = {.payload = malloc(0), .size = 0};
@@ -140,15 +115,15 @@ thread_t get_thread_posts(char* board, u64 thread_id)
     free(url);
     url = NULL;
 
-    if (response != CURLE_OK) {
+    if (response != CURLE_OK)
+    {
         free(chunk.payload);
-        result.failed = true;
-        return result;
+        return NULL;
     }
 
-    result = parse_thread_posts(chunk.payload);
+    linked_list_t* posts = parse_thread_posts(chunk.payload);
     free(chunk.payload);
 
-    return result;
+    return posts;
 }
 

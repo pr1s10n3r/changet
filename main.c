@@ -1,6 +1,7 @@
 #include <getopt.h>
 #include <stdio.h>
 #include <stdlib.h>
+#include <string.h>
 
 #include "types.h"
 #include "board.h"
@@ -76,21 +77,22 @@ int main(int argc, char* argv[])
         return EXIT_FAILURE;
     }
 
-    thread_t thread = get_thread_posts(board, thread_id);
-    if (thread.failed)
+    linked_list_t* posts = get_thread_posts(board, thread_id);
+    if (posts == NULL)
     {
         fprintf(stderr, "%s: could not get thread posts\n", progname);
         return EXIT_FAILURE;
     }
 
-    for (usize i = 0; i < 10; i++)
+    for (usize i = 0; i < posts->length; i++)
     {
-        post_t post = *thread.posts++;
-        printf("[%zu] File: %s%s\n", i, post.filename, post.ext);
+        node_t* node = list_get_idx(posts, i);
+        post_t* post = (post_t*)node->value;
+        printf("Filename: %s%s\n", post->filename, post->ext);
     }
 
-    printf("Free!\n");
-    free(thread.posts);
+    printf("Freeing\n");
+    list_destroy(posts);
 
     return EXIT_SUCCESS;
 }

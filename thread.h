@@ -1,6 +1,7 @@
 #pragma once
 
 #include "types.h"
+#include "list.h"
 #include <stdbool.h>
 
 typedef struct
@@ -16,5 +17,5 @@ typedef struct
     bool failed;
 } thread_t;
 
-extern thread_t get_thread_posts(char* board, u64 thread_id);
+extern linked_list_t* get_thread_posts(char* board, u64 thread_id);
 

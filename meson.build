@@ -9,5 +9,6 @@ executable('changet',
            'main.c',
            'board.c',
            'thread.c',
+           'list.c',
            install : true,
            dependencies : [libcurldep, jsoncdep])
